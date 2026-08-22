@@ -4,7 +4,7 @@
 [![Author: nullbyte](https://img.shields.io/badge/Author-nullbyte-a855f7.svg)](https://github.com/nullbytee1)
 [![License: MIT](https://img.shields.io/badge/License-MIT-34d399.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8+-c084fc.svg)](https://www.python.org/downloads/)
-[![Tests: 32 Passing](https://img.shields.io/badge/Tests-32%20Passing-34d399.svg)](tests/)
+[![Tests: 36 Passing](https://img.shields.io/badge/Tests-36%20Passing-34d399.svg)](tests/)
 
 **OVERDRIVE** is an open-source Linux kernel, network, and system performance optimization CLI tool. It provides real-time hardware telemetry, an interactive terminal dashboard, and remote server tuning over encrypted SSH.
 
@@ -133,7 +133,7 @@ python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
 ```text
-Ran 32 tests in 0.555s
+Ran 36 tests in 0.838s
 OK
 ```
 

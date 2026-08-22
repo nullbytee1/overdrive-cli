@@ -15,7 +15,14 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.ansi_colorizer import AnsiColorizer, PRESET_PALETTES, hex_to_rgb, lerp_rgb
-from core.ascii_engine import AsciiMotion, OVERDRIVE_BANNER
+from core.ascii_engine import (
+    AsciiMotion,
+    OVERDRIVE_BANNER,
+    BANNER_BOX_INNER_WIDTH,
+    BANNER_HEADER_TITLE,
+    strip_ansi,
+    get_display_cell_width
+)
 from core.logger import Logger
 from core.session_manager import SessionManager, CONFIG_DIR, SERVERS_FILE
 from core.system_detector import SystemDetector
@@ -79,6 +86,53 @@ class TestAnsiColorizer(unittest.TestCase):
             colored, plain = AnsiColorizer.colorize_text(sample)
             self.assertEqual(colored, sample)
             self.assertEqual(plain, sample)
+
+
+class TestAsciiMotion(unittest.TestCase):
+    def test_strip_ansi(self):
+        colored = "\x1b[38;2;168;85;247mOVERDRIVE\x1b[0m"
+        self.assertEqual(strip_ansi(colored), "OVERDRIVE")
+        self.assertEqual(strip_ansi("PLAIN_TEXT"), "PLAIN_TEXT")
+
+    def test_get_display_cell_width(self):
+        self.assertEqual(get_display_cell_width("OVERDRIVE"), 9)
+        self.assertEqual(get_display_cell_width("\x1b[1mOVERDRIVE\x1b[0m"), 9)
+        self.assertEqual(get_display_cell_width(BANNER_HEADER_TITLE), 33)
+
+    def test_render_centered_banner_frame(self):
+        frame = AsciiMotion.render_centered_banner_frame(wave=False)
+        self.assertIsNotNone(frame)
+        rendered_plain = frame.plain
+        lines = rendered_plain.splitlines()
+        
+        # Top border
+        self.assertTrue(lines[0].startswith("╭"))
+        self.assertTrue(lines[0].endswith("╮"))
+        self.assertEqual(get_display_cell_width(lines[0]), BANNER_BOX_INNER_WIDTH + 2)
+        
+        # Header line
+        self.assertTrue(lines[1].startswith("│"))
+        self.assertTrue(lines[1].endswith("│"))
+        self.assertIn(BANNER_HEADER_TITLE, lines[1])
+        self.assertEqual(get_display_cell_width(lines[1]), BANNER_BOX_INNER_WIDTH + 2)
+        
+        # Bottom border
+        self.assertTrue(lines[-1].startswith("╰"))
+        self.assertTrue(lines[-1].endswith("╯"))
+        self.assertEqual(get_display_cell_width(lines[-1]), BANNER_BOX_INNER_WIDTH + 2)
+
+    def test_artwork_bounding_box_centering(self):
+        max_artwork_w = max(get_display_cell_width(line) for line in OVERDRIVE_BANNER)
+        self.assertEqual(max_artwork_w, 71)
+        
+        left_pad = (BANNER_BOX_INNER_WIDTH - max_artwork_w) // 2
+        self.assertEqual(left_pad, 2)
+        
+        # Total inner width is 76, artwork width is 71, left pad is 2 -> right space is 76 - (71 + 2) = 3
+        right_space = BANNER_BOX_INNER_WIDTH - (max_artwork_w + left_pad)
+        self.assertEqual(right_space, 3)
+        self.assertLessEqual(abs(left_pad - right_space), 1)
+
 
 
 class TestSessionManager(unittest.TestCase):

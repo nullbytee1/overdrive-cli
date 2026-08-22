@@ -1,19 +1,21 @@
 """
 OVERDRIVE - Neon-Purple Gradient Motion Engine
-Specify CLI Aesthetic: High contrast, eye-comforting gradients, zero cyan artifacts,
-and smooth UTF-8 snake-dots animations.
+Mathematical ASCII Banner centering, dynamic terminal cell-width calculation,
+and smooth wave-cycle animation.
 """
 
 import os
 import sys
 import time
 import math
+import re
 import shutil
 from rich.console import Console
 from rich.text import Text
 from rich.align import Align
 from rich.panel import Panel
 from rich.box import ROUNDED
+from rich.cells import cell_len
 
 from core.version import __version__
 
@@ -41,6 +43,9 @@ TEXT_LILAC = "#e9d5ff"
 TEXT_LAVENDER = "#c084fc"
 TEXT_MUTED = "#a1a1aa"
 
+BANNER_BOX_INNER_WIDTH = 76
+BANNER_HEADER_TITLE = "OVERDRIVE // PERFORMANCE PLATFORM"
+
 OVERDRIVE_BANNER = [
     r"  ██████╗ ██╗   ██╗███████╗██████╗ ██████╗ ██████╗ ██╗██╗   ██╗███████╗",
     r" ██╔═══██╗██║   ██║██╔════╝██╔══██╗██╔══██╗██╔══██╗██║██║   ██║██╔════╝",
@@ -49,6 +54,16 @@ OVERDRIVE_BANNER = [
     r" ╚██████╔╝ ╚████╔╝ ███████╗██║  ██║██████╔╝██║  ██║██║ ╚████╔╝ ███████╗",
     r"  ╚═════╝   ╚═══╝  ╚══════╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝  ╚══════╝"
 ]
+
+_ANSI_ESCAPE_RE = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+
+def strip_ansi(text: str) -> str:
+    """Strips ANSI escape sequences from a string before measuring."""
+    return _ANSI_ESCAPE_RE.sub('', text)
+
+def get_display_cell_width(text: str) -> int:
+    """Calculates true terminal display-cell width of text without ANSI sequences."""
+    return cell_len(strip_ansi(text))
 
 class AsciiMotion:
     @staticmethod
@@ -86,6 +101,38 @@ class AsciiMotion:
         return result
 
     @staticmethod
+    def render_centered_banner_frame(offset: float = 0.0, wave: bool = False, optical_offset: int = 0) -> Text:
+        """
+        Constructs the entire banner box with the large ASCII logo mathematically centered
+        against the exact inner width of the surrounding box using terminal display-cell widths.
+        """
+        inner_width = BANNER_BOX_INNER_WIDTH
+        
+        # 1. Measure and center top title
+        title_w = get_display_cell_width(BANNER_HEADER_TITLE)
+        left_title_pad = max(0, (inner_width - title_w) // 2)
+        right_title_pad = max(0, inner_width - title_w - left_title_pad)
+        
+        # 2. Measure artwork lines using terminal display-cell width (stripping ANSI)
+        max_artwork_w = max(get_display_cell_width(line) for line in OVERDRIVE_BANNER)
+        
+        # 3. Calculate exact left padding to mathematically center artwork in inner box
+        artwork_left_pad = max(0, ((inner_width - max_artwork_w) // 2) + optical_offset)
+        
+        # 4. Apply left padding to each artwork line
+        padded_lines = [(" " * artwork_left_pad) + line for line in OVERDRIVE_BANNER]
+        banner_text = AsciiMotion.generate_gradient_text(padded_lines, PURPLE_PALETTE, offset=offset, wave=wave)
+        
+        # 5. Assemble composite banner box
+        frame_box = Text()
+        frame_box.append("╭" + "─" * inner_width + "╮\n", style=f"{BORDER_PURPLE}")
+        frame_box.append("│" + " " * left_title_pad + BANNER_HEADER_TITLE + " " * right_title_pad + "│\n", style="bold #c084fc")
+        frame_box.append(banner_text)
+        frame_box.append("\n╰" + "─" * inner_width + "╯", style=f"{BORDER_PURPLE}")
+        
+        return frame_box
+
+    @staticmethod
     def play_boot_animation(duration: float = 1.4):
         """Plays a smooth wave-cycle gradient intro animation with rounded container"""
         frames = 12
@@ -104,17 +151,10 @@ class AsciiMotion:
             term_w = max(80, shutil.get_terminal_size((80, 24)).columns)
             offset = (frame / frames) * math.pi * 2
             
-            banner = AsciiMotion.generate_gradient_text(OVERDRIVE_BANNER, PURPLE_PALETTE, offset=offset, wave=True)
-            
-            frame_box = Text()
-            frame_box.append("╭" + "─"*76 + "╮\n", style=f"{BORDER_PURPLE}")
-            frame_box.append("│" + " "*22 + "OVERDRIVE // PERFORMANCE PLATFORM" + " "*21 + "│\n", style="bold #c084fc")
-            frame_box.append(banner)
-            frame_box.append("\n╰" + "─"*76 + "╯", style=f"{BORDER_PURPLE}")
-            
+            frame_box = AsciiMotion.render_centered_banner_frame(offset=offset, wave=True)
             console.print(Align.center(frame_box, width=term_w))
             
-            # Subtitle pulse
+            # Subtitle pulse (shared center axis)
             stage_idx = min(frame // 3, len(boot_stages) - 1)
             stage_text = boot_stages[stage_idx]
             console.print(Align.center(f"[bold black on #a855f7] BOOT [/bold black on #a855f7] [white]{stage_text}[/white]\n", width=term_w))
@@ -122,14 +162,9 @@ class AsciiMotion:
             
         AsciiMotion.clear()
         
-        # Final static presentation
+        # Final static presentation (shared center axis)
         term_w = max(80, shutil.get_terminal_size((80, 24)).columns)
-        banner = AsciiMotion.generate_gradient_text(OVERDRIVE_BANNER, PURPLE_PALETTE, wave=False)
-        frame_box = Text()
-        frame_box.append("╭" + "─"*76 + "╮\n", style=f"{BORDER_PURPLE}")
-        frame_box.append("│" + " "*22 + "OVERDRIVE // PERFORMANCE PLATFORM" + " "*21 + "│\n", style="bold #c084fc")
-        frame_box.append(banner)
-        frame_box.append("\n╰" + "─"*76 + "╯", style=f"{BORDER_PURPLE}")
+        frame_box = AsciiMotion.render_centered_banner_frame(wave=False)
         
         console.print(Align.center(frame_box, width=term_w))
         console.print(Align.center(f"[bold #c084fc]OVERDRIVE[/bold #c084fc] [dim #71717a]•[/dim #71717a] [white]Enterprise Linux Telemetry & Network Optimization[/white] [dim #a1a1aa][v{__version__}][/dim #a1a1aa]", width=term_w))
